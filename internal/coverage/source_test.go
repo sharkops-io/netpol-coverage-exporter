@@ -179,3 +179,35 @@ func TestPolicyDoesNotLeakAcrossNamespaces(t *testing.T) {
 		t.Error("a policy in another namespace counted as coverage")
 	}
 }
+
+// A completed CronJob pod cannot receive a connection, so reporting it as an
+// uncovered exposure is the metric being wrong -- not a scope judgement.
+//
+// Regression test for a real over-report: on 2026-08-19 nine of the
+// thirty-four pods this exporter flagged were finished wal-switch and
+// housekeeping runs, and all three of wikijs' apparent gaps were dead pods.
+func TestTerminatedPodsAreNotEmitted(t *testing.T) {
+	running := newPod("netbox", "netbox-abc", map[string]string{"app": "netbox"}, false)
+	succeeded := newPod("netbox", "netbox-housekeeping-123-xyz", map[string]string{"job-name": "netbox-housekeeping-123"}, false)
+	succeeded.Status.Phase = corev1.PodSucceeded
+	failed := newPod("netbox", "netbox-housekeeping-124-xyz", map[string]string{"job-name": "netbox-housekeeping-124"}, false)
+	failed.Status.Phase = corev1.PodFailed
+
+	src := &coverage.Source{
+		Pods:    k8sfake.NewSimpleClientset(running, succeeded, failed),
+		Dynamic: newEmptyDynamicClient(),
+	}
+	samples, err := src.Collect(context.Background())
+	if err != nil {
+		t.Fatalf("Collect: %v", err)
+	}
+
+	for _, s := range samples {
+		if s.Labels["pod"] != "netbox-abc" {
+			t.Errorf("terminated pod %q was emitted; it can receive no connection", s.Labels["pod"])
+		}
+	}
+	if len(samples) != 2 { // one running pod x two directions
+		t.Errorf("got %d samples, want 2 (only the Running pod, both directions)", len(samples))
+	}
+}

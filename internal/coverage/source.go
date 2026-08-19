@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
@@ -57,6 +58,25 @@ func (s *Source) Collect(ctx context.Context) ([]metric.Sample, error) {
 	samples := make([]metric.Sample, 0, len(pods.Items)*2)
 	for i := range pods.Items {
 		pod := &pods.Items[i]
+
+		// Terminated pods are SKIPPED, not emitted-and-labelled like
+		// hostNetwork ones. The distinction matters and is not arbitrary: a
+		// hostNetwork pod is running and reachable, and excluding it is a
+		// POLICY decision that therefore belongs in the alert expression where
+		// it can be audited. A Succeeded or Failed pod has no network identity
+		// at all and cannot receive a connection, so counting it as an
+		// uncovered exposure is simply WRONG -- that is the metric being
+		// incorrect, not a judgement about scope.
+		//
+		// Found by using the measure: on 2026-08-19 nine of the thirty-four
+		// pods it reported as uncovered were completed CronJob runs
+		// (wal-switch, housekeeping). All three of wikijs' "gaps" were dead
+		// pods, and a policy written to satisfy them would have selected
+		// nothing that could ever receive traffic.
+		if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+			continue
+		}
+
 		for _, dir := range []Direction{DirectionIngress, DirectionEgress} {
 			covered := 0.0
 			for _, p := range policies {
