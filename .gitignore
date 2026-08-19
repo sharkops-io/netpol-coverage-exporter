@@ -1,0 +1,9 @@
+/netpol-coverage-exporter
+/dist/
+*.test
+
+# Agent working artefacts. Kept out of version control on the same principle
+# as unas-protect-exporter's .gitignore: files under here can end up holding
+# whole diffs of code under review, which is how a credential could end up
+# committed.
+.superpowers/

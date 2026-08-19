@@ -1,0 +1,26 @@
+# Minimal, deliberately. The point of committing this file is that CI and a
+# contributor's local `golangci-lint run` agree on a linter set at all — with
+# no config, that set is whatever the pinned image's defaults happen to be, and
+# it changes under you on every image bump. .gitlab-ci.yml pins the image to a
+# matching v2 tag for the same reason.
+version: "2"
+
+linters:
+  # standard = errcheck, govet, ineffassign, staticcheck, unused.
+  default: standard
+  enable:
+    # Every user-visible string here is documentation someone will act on.
+    - misspell
+  exclusions:
+    presets:
+      # `defer resp.Body.Close()` and friends.
+      - std-error-handling
+    rules:
+      # An httptest handler that fails to write its response fails the test
+      # it serves, loudly, one line later.
+      - path: _test\.go
+        linters: [errcheck]
+
+formatters:
+  enable:
+    - gofmt
