@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -43,11 +44,12 @@ func main() {
 
 	slog.Info("starting netpol-coverage-exporter", "version", version)
 
-	reg, err := buildRegistry(cfg)
+	src, err := newSource(cfg)
 	if err != nil {
 		slog.Error("startup", "err", err)
 		os.Exit(1)
 	}
+	reg := buildRegistry(src, cfg.Timeout)
 
 	mux := http.NewServeMux()
 	mux.Handle(cfg.TelemetryPath, metricsHandler(reg))
@@ -61,10 +63,24 @@ func main() {
 	}
 }
 
-// buildRegistry wires the configured collectors onto a fresh registry. It is
-// split out of main, rather than inlined there, so the whole config →
-// registry → /metrics path is reachable from a test.
-func buildRegistry(cfg *config.Config) (*prometheus.Registry, error) {
+// buildRegistry wires src onto a fresh registry alongside the Go/process
+// runtime collectors. It takes an already-built collector.Source rather than
+// a *config.Config precisely so this seam — the whole
+// collector -> registry -> /metrics path — is reachable from a test with a
+// fake Source, instead of requiring a real Kubernetes API server. Building
+// the real clients from cfg is newSource's job, called only from main.
+func buildRegistry(src collector.Source, timeout time.Duration) *prometheus.Registry {
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+	reg.MustRegister(collector.New(src, timeout))
+	return reg
+}
+
+// newSource builds the coverage.Source's real Kubernetes clients from cfg.
+// Kept separate from buildRegistry so client construction — which needs a
+// real or reachable kubeconfig and cannot be exercised with a fake — stays
+// out of the tested seam.
+func newSource(cfg *config.Config) (*coverage.Source, error) {
 	restCfg, err := restConfig(cfg.KubeconfigPath)
 	if err != nil {
 		return nil, fmt.Errorf("kube config: %w", err)
@@ -77,11 +93,7 @@ func buildRegistry(cfg *config.Config) (*prometheus.Registry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("dynamic client: %w", err)
 	}
-
-	reg := prometheus.NewRegistry()
-	reg.MustRegister(collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	reg.MustRegister(collector.New(&coverage.Source{Pods: clientset, Dynamic: dyn}, cfg.Timeout))
-	return reg, nil
+	return &coverage.Source{Pods: clientset, Dynamic: dyn}, nil
 }
 
 // restConfig builds a Kubernetes REST config from an explicit kubeconfig path
