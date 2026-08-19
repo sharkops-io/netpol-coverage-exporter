@@ -6,6 +6,7 @@ require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/prometheus/client_golang v1.24.1
 	gitlab.com/sharkops/exporters/exporter-common v0.2.0
+	k8s.io/api v0.36.3
 	k8s.io/apimachinery v0.36.3
 )
 
