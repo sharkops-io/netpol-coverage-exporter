@@ -19,8 +19,8 @@ import (
 // exporter that needs endpointSelector and the four rule keys.
 //
 // CiliumClusterwideNetworkPolicy is NOT read. The CRD exists with zero objects;
-// CCNPs are Phase 3. policySources below is a LIST so adding one is a source,
-// not a rewrite.
+// CCNPs are Phase 3. The policies slice built in the policies() method is a
+// LIST so adding one is a source, not a rewrite.
 var CiliumNetworkPolicyGVR = schema.GroupVersionResource{
 	Group: "cilium.io", Version: "v2", Resource: "ciliumnetworkpolicies",
 }

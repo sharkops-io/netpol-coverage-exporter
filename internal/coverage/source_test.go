@@ -74,6 +74,24 @@ func TestEgressOnlyPolicyDoesNotCoverIngress(t *testing.T) {
 	if v, ok := sampleFor(t, samples, "plex", "qbittorrent-abc", "egress"); !ok || v != 1 {
 		t.Errorf("egress covered = %v (found=%v), want 1", v, ok)
 	}
+
+	// The "workload" label is the contract the longhorn exclusion in
+	// netpol-coverage-rules.yaml matches on (workload=~"csi-attacher|...").
+	// Nothing else in this suite asserts the label KEY, so renaming it would
+	// leave every other test green while silently breaking that exclusion.
+	var sawWorkload bool
+	for _, s := range samples {
+		if s.Labels["pod"] != "qbittorrent-abc" {
+			continue
+		}
+		sawWorkload = true
+		if s.Labels["workload"] != "qbittorrent-abc" {
+			t.Errorf("workload label = %q, want %q", s.Labels["workload"], "qbittorrent-abc")
+		}
+	}
+	if !sawWorkload {
+		t.Fatal("no sample found for qbittorrent-abc to check the workload label on")
+	}
 }
 
 // A CiliumNetworkPolicy with an EMPTY endpointSelector covers every pod in its
