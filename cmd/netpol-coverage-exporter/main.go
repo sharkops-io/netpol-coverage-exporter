@@ -5,6 +5,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -12,8 +13,14 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 
+	"gitlab.com/sharkops/exporters/exporter-common/collector"
 	"gitlab.com/sharkops/exporters/netpol-coverage-exporter/internal/config"
+	"gitlab.com/sharkops/exporters/netpol-coverage-exporter/internal/coverage"
 )
 
 // version is overridden at build time via -ldflags "-X main.version=...".
@@ -36,7 +43,11 @@ func main() {
 
 	slog.Info("starting netpol-coverage-exporter", "version", version)
 
-	reg := buildRegistry(cfg)
+	reg, err := buildRegistry(cfg)
+	if err != nil {
+		slog.Error("startup", "err", err)
+		os.Exit(1)
+	}
 
 	mux := http.NewServeMux()
 	mux.Handle(cfg.TelemetryPath, metricsHandler(reg))
@@ -53,14 +64,34 @@ func main() {
 // buildRegistry wires the configured collectors onto a fresh registry. It is
 // split out of main, rather than inlined there, so the whole config →
 // registry → /metrics path is reachable from a test.
-//
-// This is scaffolding: only the Go/process runtime collectors are registered
-// here. The coverage collector itself lands in a later task, which rewrites
-// this function to wire it in.
-func buildRegistry(_ *config.Config) *prometheus.Registry {
+func buildRegistry(cfg *config.Config) (*prometheus.Registry, error) {
+	restCfg, err := restConfig(cfg.KubeconfigPath)
+	if err != nil {
+		return nil, fmt.Errorf("kube config: %w", err)
+	}
+	clientset, err := kubernetes.NewForConfig(restCfg)
+	if err != nil {
+		return nil, fmt.Errorf("clientset: %w", err)
+	}
+	dyn, err := dynamic.NewForConfig(restCfg)
+	if err != nil {
+		return nil, fmt.Errorf("dynamic client: %w", err)
+	}
+
 	reg := prometheus.NewRegistry()
 	reg.MustRegister(collectors.NewGoCollector(), collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-	return reg
+	reg.MustRegister(collector.New(&coverage.Source{Pods: clientset, Dynamic: dyn}, cfg.Timeout))
+	return reg, nil
+}
+
+// restConfig builds a Kubernetes REST config from an explicit kubeconfig path
+// when one is given (running the exporter against a cluster from a laptop),
+// or from the in-cluster service account otherwise.
+func restConfig(kubeconfig string) (*rest.Config, error) {
+	if kubeconfig != "" {
+		return clientcmd.BuildConfigFromFlags("", kubeconfig)
+	}
+	return rest.InClusterConfig()
 }
 
 // metricsHandler serves reg at the telemetry path.
