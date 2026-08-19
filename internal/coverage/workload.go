@@ -7,10 +7,18 @@ import (
 )
 
 // replicaSetSuffix is the pod-template hash a Deployment appends to its
-// ReplicaSet names. jobSuffix is the schedule timestamp a CronJob appends.
+// ReplicaSet names, restricted to the actual pod-template-hash alphabet
+// (vowels and 0/1/3 excluded, so a hash can never form a readable word) --
+// a broader charset would over-trim a legitimately named ReplicaSet such as
+// "redis-primary" down to "redis".
+//
+// jobSuffix is the schedule timestamp a CronJob appends: minutes-since-epoch,
+// currently 8 digits and staying 8 digits for well over a century. Requiring
+// 8+ digits (not 6+) spares a hand-created Job ending in a shorter numeric
+// suffix, such as a build number or ticket ID.
 var (
-	replicaSetSuffix = regexp.MustCompile(`-[a-z0-9]{6,10}$`)
-	jobSuffix        = regexp.MustCompile(`-\d{6,}$`)
+	replicaSetSuffix = regexp.MustCompile(`-[bcdfghjklmnpqrstvwxz2456789]{6,10}$`)
+	jobSuffix        = regexp.MustCompile(`-\d{8,}$`)
 )
 
 // WorkloadName returns a stable identifier for the thing that created the pod.

@@ -47,4 +47,28 @@ func TestWorkloadName(t *testing.T) {
 	if got := coverage.WorkloadName(pod("standalone", nil)); got != "standalone" {
 		t.Errorf("WorkloadName = %q, want standalone", got)
 	}
+
+	// A ReplicaSet legitimately named with a real word must NOT be mistaken
+	// for a name-plus-pod-template-hash and trimmed. The real hash alphabet
+	// excludes vowels and 0/1/3, so a suffix containing a vowel can never be
+	// a genuine hash.
+	got = coverage.WorkloadName(pod("redis-primary-6q9hp", &metav1.OwnerReference{
+		Kind: "ReplicaSet", Name: "redis-primary", Controller: &ctrl}))
+	if got != "redis-primary" {
+		t.Errorf("WorkloadName = %q, want redis-primary", got)
+	}
+	got = coverage.WorkloadName(pod("postgres-standby-6q9hp", &metav1.OwnerReference{
+		Kind: "ReplicaSet", Name: "postgres-standby", Controller: &ctrl}))
+	if got != "postgres-standby" {
+		t.Errorf("WorkloadName = %q, want postgres-standby", got)
+	}
+
+	// A hand-created Job ending in a shorter numeric suffix (build number,
+	// ticket ID) must NOT be mistaken for a CronJob's minutes-since-epoch
+	// timestamp, which is 8 digits.
+	got = coverage.WorkloadName(pod("import-run-100000-gd7hk", &metav1.OwnerReference{
+		Kind: "Job", Name: "import-run-100000", Controller: &ctrl}))
+	if got != "import-run-100000" {
+		t.Errorf("WorkloadName = %q, want import-run-100000", got)
+	}
 }

@@ -43,7 +43,15 @@ func NormalizeCiliumSelector(raw map[string]any) (*metav1.LabelSelector, bool) {
 			if !ok {
 				return nil, false
 			}
-			s, _ := v.(string)
+			// A non-string value would silently coerce to "", which can then
+			// FALSELY MATCH a pod whose label value is genuinely empty. That
+			// is the one path in this function that produces a false
+			// positive rather than the documented safe direction, so treat
+			// it as unsupported instead.
+			s, ok := v.(string)
+			if !ok {
+				return nil, false
+			}
 			sel.MatchLabels[key] = s
 		}
 	}
@@ -72,16 +80,27 @@ func NormalizeCiliumSelector(raw map[string]any) (*metav1.LabelSelector, bool) {
 	return sel, true
 }
 
-// stripSource removes a "k8s:" source prefix. Any other prefix is unsupported.
+// stripSource removes a "k8s:" source prefix. Any other prefix is
+// unsupported. A key that is empty after stripping -- e.g. exactly "k8s:"
+// with nothing after the colon -- is also unsupported: an empty label key
+// can never be a real Kubernetes label, so silently accepting it would be
+// coercion, not normalization.
 func stripSource(key string) (string, bool) {
 	i := strings.Index(key, ":")
 	if i < 0 {
+		if key == "" {
+			return "", false
+		}
 		return key, true
 	}
-	if key[:i] == "k8s" {
-		return key[i+1:], true
+	if key[:i] != "k8s" {
+		return "", false
 	}
-	return "", false
+	stripped := key[i+1:]
+	if stripped == "" {
+		return "", false
+	}
+	return stripped, true
 }
 
 func asString(v any) string { s, _ := v.(string); return s }

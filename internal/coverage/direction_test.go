@@ -43,6 +43,11 @@ func TestCiliumDirections(t *testing.T) {
 		// A CNP with a selector but no rules enforces nothing for either
 		// direction and must not be counted as coverage.
 		{"selector only, no rules", map[string]any{"endpointSelector": map[string]any{}}, false, false},
+		// In YAML, "ingress: null" produces a PRESENT key with a nil value.
+		// A present-but-nil key must not be counted as governing that
+		// direction -- only a present key with actual rule content does.
+		{"explicit null ingress key", map[string]any{"ingress": nil}, false, false},
+		{"explicit null egress key", map[string]any{"egress": nil}, false, false},
 	}
 
 	for _, c := range cases {

@@ -39,6 +39,13 @@ func TestMatches(t *testing.T) {
 		// labels.Nothing(). Guarding this explicitly because getting it
 		// backwards would silently report every pod as covered.
 		{"nil selects nothing", nil, false},
+		// A malformed selector -- here an invalid operator -- makes
+		// LabelSelectorAsSelector return an error. That must report
+		// not-covered, the same safe direction as every other malformed
+		// shape in this package.
+		{"invalid operator errors, reports not-covered", &metav1.LabelSelector{
+			MatchExpressions: []metav1.LabelSelectorRequirement{{
+				Key: "tier", Operator: "Bogus"}}}, false},
 	}
 
 	for _, c := range cases {
@@ -90,6 +97,22 @@ func TestNormalizeCiliumSelector(t *testing.T) {
 			"matchLabels": map[string]any{"reserved:host": ""},
 		}); ok {
 			t.Error("ok = true, want false for a reserved: selector")
+		}
+	})
+
+	t.Run("bare k8s: prefix with no key is unsupported", func(t *testing.T) {
+		if _, ok := coverage.NormalizeCiliumSelector(map[string]any{
+			"matchLabels": map[string]any{"k8s:": "wiki"},
+		}); ok {
+			t.Error("ok = true, want false for a k8s: key with nothing after the colon")
+		}
+	})
+
+	t.Run("non-string matchLabels value is unsupported, not coerced to empty", func(t *testing.T) {
+		if _, ok := coverage.NormalizeCiliumSelector(map[string]any{
+			"matchLabels": map[string]any{"app.kubernetes.io/name": 123},
+		}); ok {
+			t.Error("ok = true, want false for a non-string matchLabels value")
 		}
 	})
 }
