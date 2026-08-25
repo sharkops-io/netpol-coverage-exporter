@@ -2,29 +2,19 @@ include:
   - project: 'sharkops/gitlab-ci-common-config'
     ref: master
     file: 'docker/build.yml'
+  # lint + test. Extracted 2026-08-24 - this repo and four sibling exporters
+  # carried byte-identical copies, which had already drifted (exporter-common
+  # hardcoded golang:1.26 while the rest used ${GO_VERSION}).
+  - project: 'sharkops/gitlab-ci-common-config'
+    ref: master
+    file: 'go/ci.yml'
 
 # The included template's jobs both declare `stage: build` and supply no
 # `stages:` list, so this project must declare one covering every stage used.
 stages: [test, build]
 
 variables:
-  GO_VERSION: "1.26"
   REGISTRY_URL: $CI_REGISTRY
   REGISTRY_USER: $CI_REGISTRY_USER
   REGISTRY_PASSWORD: $CI_REGISTRY_PASSWORD
   IMAGE_NAME: $CI_REGISTRY_IMAGE
-
-# Pinned, not :latest. golangci-lint refuses to run when its Go version is
-# older than go.mod's, so :latest turns an upstream release into a red
-# pipeline on an unchanged commit. Bump with GO_VERSION and go.mod together.
-lint:
-  stage: test
-  image: golangci/golangci-lint:v2.12.2
-  script:
-    - golangci-lint run --timeout 5m
-
-test:
-  stage: test
-  image: golang:${GO_VERSION}
-  script:
-    - go test ./... -race -count=1
