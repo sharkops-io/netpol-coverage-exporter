@@ -5,7 +5,7 @@ import (
 
 	networkingv1 "k8s.io/api/networking/v1"
 
-	"gitlab.com/sharkops/exporters/netpol-coverage-exporter/internal/coverage"
+	"github.com/sharkops-io/netpol-coverage-exporter/internal/coverage"
 )
 
 func TestNetworkPolicyDirections(t *testing.T) {

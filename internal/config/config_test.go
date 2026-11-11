@@ -3,7 +3,7 @@ package config_test
 import (
 	"testing"
 
-	"gitlab.com/sharkops/exporters/netpol-coverage-exporter/internal/config"
+	"github.com/sharkops-io/netpol-coverage-exporter/internal/config"
 )
 
 func TestDefaultListenAddress(t *testing.T) {

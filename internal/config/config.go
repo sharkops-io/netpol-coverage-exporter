@@ -7,7 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/alecthomas/kingpin/v2"
-	common "gitlab.com/sharkops/exporters/exporter-common/config"
+	common "github.com/sharkops-io/exporter-common/config"
 )
 
 // ErrHelpRequested is re-exported so main can treat --help as exit 0.

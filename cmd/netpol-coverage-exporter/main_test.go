@@ -11,7 +11,7 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
-	"gitlab.com/sharkops/exporters/netpol-coverage-exporter/internal/coverage"
+	"github.com/sharkops-io/netpol-coverage-exporter/internal/coverage"
 )
 
 // The whole config -> registry -> /metrics path must produce metrics NAMED

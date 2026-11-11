@@ -19,9 +19,9 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 
-	"gitlab.com/sharkops/exporters/exporter-common/collector"
-	"gitlab.com/sharkops/exporters/netpol-coverage-exporter/internal/config"
-	"gitlab.com/sharkops/exporters/netpol-coverage-exporter/internal/coverage"
+	"github.com/sharkops-io/exporter-common/collector"
+	"github.com/sharkops-io/netpol-coverage-exporter/internal/config"
+	"github.com/sharkops-io/netpol-coverage-exporter/internal/coverage"
 )
 
 // version is overridden at build time via -ldflags "-X main.version=...".

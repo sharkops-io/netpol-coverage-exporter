@@ -6,7 +6,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"gitlab.com/sharkops/exporters/netpol-coverage-exporter/internal/coverage"
+	"github.com/sharkops-io/netpol-coverage-exporter/internal/coverage"
 )
 
 func pod(name string, owner *metav1.OwnerReference) *corev1.Pod {

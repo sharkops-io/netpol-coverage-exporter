@@ -14,8 +14,8 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
-	"gitlab.com/sharkops/exporters/exporter-common/metric"
-	"gitlab.com/sharkops/exporters/netpol-coverage-exporter/internal/coverage"
+	"github.com/sharkops-io/exporter-common/metric"
+	"github.com/sharkops-io/netpol-coverage-exporter/internal/coverage"
 )
 
 func sampleFor(t *testing.T, samples []metric.Sample, ns, pod, dir string) (float64, bool) {
